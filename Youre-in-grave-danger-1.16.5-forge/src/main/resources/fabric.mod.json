@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "yigd",
+  "version": "2.0.16",
+  "name": "You're in Grave Danger",
+  "description": "Adds graves and some other stuff to the game",
+  "authors": [
+    "b1n_ry"
+  ],
+  "license": "MIT",
+  "environment": "*"
+}

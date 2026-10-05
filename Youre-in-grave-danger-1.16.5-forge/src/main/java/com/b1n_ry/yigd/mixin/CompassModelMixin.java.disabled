@@ -1,0 +1,45 @@
+package com.b1n_ry.yigd.mixin;
+
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.client.renderer.item.CompassItemPropertyFunction;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.GlobalPos;
+import net.minecraft.util.registry.Registry;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.nbt.NBTUtil;
+import net.minecraft.util.RegistryKey;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.world.World;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
+@Mixin(CompassItemPropertyFunction.class)
+public class CompassModelMixin {
+    @Redirect(
+            method = "getCompassRotation",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/item/CompassItemPropertyFunction$CompassTarget;getPos(Lnet/minecraft/client/world/ClientWorld;Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/Entity;)Lnet/minecraft/util/math/GlobalPos;"
+            )
+    )
+    private GlobalPos changeCompassDirection(CompassItemPropertyFunction.CompassTarget compassTarget, ClientWorld world, ItemStack stack, Entity entity) {
+        CompoundNBT itemNbt = stack.getTag();
+        final String graveDimensionKey = "grave_dimension";
+        final String gravePosKey = "grave_pos";
+
+        if (itemNbt != null && itemNbt.contains(graveDimensionKey) && itemNbt.contains(gravePosKey)) {
+            ResourceLocation dimensionId = ResourceLocation.tryParse(itemNbt.getString(graveDimensionKey));
+            if (dimensionId == null) {
+                return null;
+            }
+            RegistryKey<World> dimensionKey = RegistryKey.create(Registry.DIMENSION_REGISTRY, dimensionId);
+            BlockPos blockPos = NBTUtil.readBlockPos(itemNbt.getCompound(gravePosKey));
+            return GlobalPos.of(dimensionKey, blockPos);
+        }
+
+        return compassTarget.getPos(world, stack, entity);
+    }
+}

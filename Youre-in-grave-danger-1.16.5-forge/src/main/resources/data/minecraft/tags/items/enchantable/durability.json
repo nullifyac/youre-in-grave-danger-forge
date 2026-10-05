@@ -1,0 +1,18 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:enchantable/armor",
+    "#minecraft:enchantable/weapon",
+    "#minecraft:enchantable/bow",
+    "#minecraft:enchantable/crossbow",
+    "#c:tools",
+    "minecraft:elytra",
+    "minecraft:shield",
+    "minecraft:trident",
+    "minecraft:fishing_rod",
+    "minecraft:carrot_on_a_stick",
+    "minecraft:warped_fungus_on_a_stick",
+    "minecraft:flint_and_steel",
+    "minecraft:shears"
+  ]
+}

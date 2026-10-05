@@ -1,0 +1,23 @@
+pluginManagement {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        gradlePluginPortal()
+        mavenLocal()
+    }
+}
+
+rootProject.name = 'youre-in-grave-danger-forge'
+
+def accessoriesPathCandidates = [
+        file('../resources/accessories-1.20.1-Backport/accessories-1.20.1-Backport'),
+        file('../accessories-1.20.1-Backport/accessories-1.20.1-Backport')
+]
+def accessoriesPath = accessoriesPathCandidates.find { it.exists() }
+if (accessoriesPath != null) {
+    includeBuild(accessoriesPath) {
+        dependencySubstitution {
+            substitute module('io.wispforest:accessories-common') using project(':common')
+        }
+    }
+}

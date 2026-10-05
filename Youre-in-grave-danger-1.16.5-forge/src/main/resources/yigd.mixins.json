@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.b1n_ry.yigd.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "yigd.mixins.refmap.json",
+  "mixins": [
+    "CompassItemMixin",
+    "LivingEntityMixin",
+    "MinecraftDedicatedServerMixin",
+    "ServerPlayerMixin"
+  ],
+  "client": [
+    "AbstractConfigScreenMixin"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

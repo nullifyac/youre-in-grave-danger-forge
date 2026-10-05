@@ -1,0 +1,60 @@
+# Build artifacts
+build/
+out/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+*.launch
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Runtime
+run/
+run-server/
+run-gametest/
+run-data/
+/logs/
+/minecraft/
+/minecraft/*
+/minepkg-lock.toml
+
+# IDE
+bin/
+
+# Project-specific
+/images/
+.jdk8
+/resources/
+/Youre-in-grave-danger-1.20.1-forge/Curios-1.20.x/
+/Youre-in-grave-danger-1.20.1-forge/numismatic-overhaul-1.20/
+
+# Local build diagnostics
+compile_errors.txt
+latest_errors.txt
+errors2.txt
+errors3.txt
+
+# Ignore generated debug folders
+**/debug/
+.venv

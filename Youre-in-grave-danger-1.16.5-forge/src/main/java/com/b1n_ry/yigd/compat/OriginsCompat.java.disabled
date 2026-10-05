@@ -1,0 +1,274 @@
+package com.b1n_ry.yigd.compat;
+
+import com.b1n_ry.yigd.components.InventoryComponent;
+import com.b1n_ry.yigd.config.CompatConfig;
+import com.b1n_ry.yigd.config.YigdConfig;
+import com.b1n_ry.yigd.data.DeathContext;
+import com.b1n_ry.yigd.data.GraveItem;
+import com.b1n_ry.yigd.events.AdjustDropRuleEvent;
+import com.b1n_ry.yigd.events.DropRuleEvent;
+import com.b1n_ry.yigd.mixin.accessor.KeepInventoryPowerAccessor;
+import com.b1n_ry.yigd.util.DropRule;
+import io.github.apace100.apoli.component.PowerHolderComponent;
+import io.github.apace100.apoli.power.Active;
+import io.github.apace100.apoli.power.InventoryPower;
+import io.github.apace100.apoli.power.KeepInventoryPower;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.core.NonNullList;
+import net.minecraftforge.common.MinecraftForge;
+
+import java.util.*;
+import java.util.function.Predicate;
+
+public class OriginsCompat implements InvModCompat<Map<String, NonNullList<GraveItem>>> {
+    public OriginsCompat() {
+        AdjustDropRuleEvent.EVENT.register((inventoryComponent, context) -> {
+            List<KeepInventoryPower> powers = PowerHolderComponent.getPowers(context.player(), KeepInventoryPower.class);
+            Predicate<ItemStack> keepCondition = Predicate.not(s -> true);  // Base to add onto
+            for (KeepInventoryPower power : powers) {
+                keepCondition = keepCondition.or(((KeepInventoryPowerAccessor) power).getKeepItemCondition());
+            }
+
+            Predicate<ItemStack> finalKeepCondition = keepCondition;  // The compiler requires this copy to compile
+            inventoryComponent.handleGraveItems(mod -> true, (stack, slot, graveItem) -> {
+                if (finalKeepCondition.test(stack)) {
+                    graveItem.dropRule = DropRule.KEEP;
+                }
+            });
+        });
+    }
+
+    @Override
+    public String getModName() {
+        return "apoli";
+    }
+
+    @Override
+    public void clear(ServerPlayer player) {
+        PowerHolderComponent.getPowers(player, InventoryPower.class).forEach(InventoryPower::clear);
+    }
+
+    @Override
+    public CompatComponent<Map<String, NonNullList<GraveItem>>> load(CompoundTag nbt) {
+        Map<String, NonNullList<GraveItem>> inventory = new HashMap<>();
+
+        for (String key : nbt.getKeys()) {
+            CompoundTag inventoryNbt = nbt.getCompound(key);
+
+            NonNullList<GraveItem> items = InventoryComponent.listFromNbt(inventoryNbt, itemNbt -> {
+                ItemStack stack = ItemStack.fromNbt(itemNbt);
+
+                DropRule dropRule;
+                if (itemNbt.contains("dropRule")) {
+                    dropRule = DropRule.valueOf(itemNbt.getString("dropRule"));
+                } else {
+                    dropRule = YigdConfig.getConfig().compatConfig.defaultOriginsDropRule;
+                }
+
+                return new GraveItem(stack, dropRule);
+            }, InventoryComponent.EMPTY_GRAVE_ITEM);
+
+            inventory.put(key, items);
+        }
+
+        return new OriginsCompatComponent(inventory);
+    }
+
+    @Override
+    public CompatComponent<Map<String, NonNullList<GraveItem>>> getNewComponent(ServerPlayer player) {
+        return new OriginsCompatComponent(player);
+    }
+
+    private static class OriginsCompatComponent extends CompatComponent<Map<String, NonNullList<GraveItem>>> {
+
+        public OriginsCompatComponent(ServerPlayer player) {
+            super(player);
+        }
+
+        public OriginsCompatComponent(Map<String, NonNullList<GraveItem>> inventory) {
+            super(inventory);
+        }
+
+        @Override
+        public Map<String, NonNullList<GraveItem>> getInventory(ServerPlayer player) {
+            CompatConfig compatConfig = YigdConfig.getConfig().compatConfig;
+
+            Map<String, NonNullList<GraveItem>> inventory = new HashMap<>();
+
+            List<InventoryPower> powers = PowerHolderComponent.getPowers(player, InventoryPower.class);
+            for (InventoryPower inventoryPower : powers) {
+                Active.Key key = inventoryPower.getKey();
+                NonNullList<GraveItem> stacks = NonNullList.of();
+
+                for (int i = 0; i < inventoryPower.size(); i++) {
+                    ItemStack stack = inventoryPower.getStack(i);
+                    DropRule dropRule = inventoryPower.shouldDropOnDeath(stack) ? compatConfig.defaultOriginsDropRule : DropRule.KEEP;
+                    stacks.add(new GraveItem(stack, dropRule));
+                }
+
+                inventory.put(key.key, stacks);
+            }
+
+            return inventory;
+        }
+
+        @Override
+        public NonNullList<GraveItem> merge(CompatComponent<?> mergingComponent, ServerPlayer merger) {
+            NonNullList<GraveItem> extraItems = NonNullList.of();
+
+            @SuppressWarnings("unchecked")
+            Map<String, NonNullList<GraveItem>> mergingInventory = (Map<String, NonNullList<GraveItem>>) mergingComponent.inventory;
+            for (Map.Entry<String, NonNullList<GraveItem>> entry : mergingInventory.entrySet()) {
+                NonNullList<GraveItem> currentItems = this.inventory.getOrDefault(entry.getKey(), NonNullList.of());
+                NonNullList<GraveItem> mergingItems = entry.getValue();
+
+                for (int i = 0; i < mergingItems.size(); i++) {
+                    GraveItem mergingItem = mergingItems.getValue(i).copy();  // Solves the case where the itemstacks are the same instance
+
+                    if (i >= currentItems.size()) {
+                        extraItems.add(mergingItem);
+                        continue;
+                    }
+
+                    GraveItem currentGraveItem = currentItems.getValue(i);
+                    if (!currentGraveItem.stack.isEmpty()) {
+                        extraItems.add(mergingItem);
+                    } else {
+                        currentItems.set(i, mergingItem);
+                    }
+                }
+            }
+
+            return extraItems;
+        }
+
+        @Override
+        public NonNullList<ItemStack> storeToPlayer(ServerPlayer player) {
+            NonNullList<ItemStack> extraItems = NonNullList.of();
+
+            List<InventoryPower> powers = PowerHolderComponent.getPowers(player, InventoryPower.class);
+            List<String> unhandledPowers = new ArrayList<>(this.inventory.keySet());
+
+            for (InventoryPower power : powers) {
+                String key = power.getKey().key;
+                unhandledPowers.remove(key);
+
+                NonNullList<GraveItem> inventoryItems = this.inventory.getValue(key);
+                if (inventoryItems == null)
+                    continue;
+
+                for (int i = 0; i < inventoryItems.size(); i++) {
+                    ItemStack currentStack = inventoryItems.getValue(i).stack.copy();
+
+                    if (i >= power.size()) {
+                        extraItems.add(currentStack);
+                    } else {
+                        power.setStack(i, currentStack);
+                    }
+                }
+            }
+
+            for (String key : unhandledPowers) {
+                for (GraveItem graveItem : this.inventory.getValue(key)) {
+                    extraItems.add(graveItem.stack.copy());
+                }
+            }
+
+
+            return extraItems;
+        }
+
+        @Override
+        public void handleDropRules(DeathContext context) {
+            for (Map.Entry<String, NonNullList<GraveItem>> entry : this.inventory.entrySet()) {
+                NonNullList<GraveItem> items = entry.getValue();
+
+                for (GraveItem graveItem : items) {
+                    ItemStack item = graveItem.stack;
+                    if (item.isEmpty()) continue;
+
+                    DropRule dropRule = graveItem.dropRule;
+
+                    if (dropRule == DropRule.PUT_IN_GRAVE) {
+                        DropRuleEvent event = new DropRuleEvent(item, -1, context, true);
+                        MinecraftForge.EVENT_BUS.post(event);
+                        dropRule = event.getDropRule();
+                    }
+
+                    graveItem.dropRule = dropRule;
+                }
+            }
+        }
+
+        @Override
+        public NonNullList<GraveItem> getAsGraveItemList() {
+            NonNullList<GraveItem> allItems = NonNullList.of();
+            for (NonNullList<GraveItem> stacks : this.inventory.values())
+                allItems.addAll(stacks);
+
+            return allItems;
+        }
+
+        @Override
+        public CompatComponent<Map<String, NonNullList<GraveItem>>> filterInv(Predicate<DropRule> predicate) {
+            Map<String, NonNullList<GraveItem>> inventory = new HashMap<>();
+            for (Map.Entry<String, NonNullList<GraveItem>> entry : this.inventory.entrySet()) {
+                NonNullList<GraveItem> items = entry.getValue();
+
+                NonNullList<GraveItem> filteredItems = NonNullList.of();
+                for (GraveItem graveItem : items) {
+                    if (predicate.test(graveItem.dropRule)) {
+                        filteredItems.add(graveItem);
+                    } else {
+                        filteredItems.add(InventoryComponent.EMPTY_GRAVE_ITEM);
+                    }
+                }
+
+                inventory.put(entry.getKey(), filteredItems);
+            }
+
+            return new OriginsCompatComponent(inventory);
+        }
+
+        @Override
+        public boolean removeItem(Predicate<ItemStack> predicate, int itemCount) {
+            for (NonNullList<GraveItem> stacks : this.inventory.values()) {
+                for (GraveItem graveItem : stacks) {
+                    ItemStack stack = graveItem.stack;
+                    if (predicate.test(stack)) {
+                        stack.shrink(itemCount);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public void clear() {
+            for (NonNullList<GraveItem> stacks : this.inventory.values()) {
+                Collections.fill(stacks, InventoryComponent.EMPTY_GRAVE_ITEM);
+            }
+        }
+
+        @Override
+        public CompoundTag saveAdditional() {
+            CompoundTag nbt = new CompoundTag();
+            for (Map.Entry<String, NonNullList<GraveItem>> entry : this.inventory.entrySet()) {
+                NonNullList<GraveItem> items = entry.getValue();
+
+                CompoundTag itemsNbt = InventoryComponent.listToNbt(items, graveItem -> {
+                    CompoundTag itemNbt = new CompoundTag();
+                    graveItem.stack.saveAdditional(itemNbt);
+                    itemNbt.putString("dropRule", graveItem.dropRule.toString());
+                    return itemNbt;
+                }, graveItem -> graveItem.stack.isEmpty());
+
+                nbt.put(entry.getKey(), itemsNbt);
+            }
+            return nbt;
+        }
+    }
+}

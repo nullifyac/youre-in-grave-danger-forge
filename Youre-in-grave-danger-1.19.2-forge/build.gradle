@@ -1,0 +1,187 @@
+plugins {
+    id 'eclipse'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '5.1.+'
+    id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = archives_base_name
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    withSourcesJar()
+}
+
+minecraft {
+    mappings channel: mappings_channel, version: mappings_version
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                create(project.mod_id) {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run-server')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            arg '--nogui'
+
+            mods {
+                create(project.mod_id) {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        gameTestServer {
+            workingDirectory project.file('run-gametest')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'forge.enabledGameTestNamespaces', project.mod_id
+
+            mods {
+                create(project.mod_id) {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file('run-data')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--mod', project.mod_id, '--all', '--output', file('src/generated/resources').getAbsolutePath(), '--existing', file('src/main/resources').getAbsolutePath()
+
+            mods {
+                create(project.mod_id) {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir 'src/generated/resources'
+        }
+    }
+}
+
+configurations {
+    localRuntime
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://maven.shedaniel.me/" }
+    maven { url 'https://maven.su5ed.dev/releases' }
+    maven { url "https://maven.wispforest.io/releases" }
+    maven {
+        name = "Illusive Soulworks"
+        url = "https://maven.theillusivec4.top/"
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                url "https://api.modrinth.com/maven"
+            }
+        }
+        filter { includeGroup "maven.modrinth" }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                url "https://cursemaven.com"
+            }
+        }
+        filter { includeGroup "curse.maven" }
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+
+    implementation fg.deobf("me.shedaniel.cloth:cloth-config-forge:${project.config_version}")
+
+    // Optional dependencies - commented out for build without external mods
+    compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:${project.curios_version}:api")
+    // compileOnly fg.deobf("maven.modrinth:travelersbackpack:${project.travelers_backpack_version}")
+    // compileOnly fg.deobf("curse.maven:cosmeticarmor-${project.cosmetic_armor_version}")
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+mixin {
+    add sourceSets.main, "yigd.mixins.refmap.json"
+    config "yigd.mixins.json"
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    inputs.property 'modVersion', project.version
+    inputs.property 'minecraftVersion', project.minecraft_version
+    inputs.property 'loaderRange', project.loader_version_range
+    inputs.property 'minecraftRange', project.minecraft_version_range
+
+    filesMatching('META-INF/mods.toml') {
+        expand(
+                mod_id: project.mod_id,
+                mod_version: project.version,
+                mod_name: project.mod_name,
+                mod_authors: project.mod_authors,
+                mod_license: project.mod_license,
+                mod_description: project.mod_description,
+                loader_version_range: project.loader_version_range,
+                minecraft_version_range: project.minecraft_version_range
+        )
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 17
+}
+
+tasks.named('jar', Jar).configure {
+    manifest.attributes(
+            'Specification-Title': mod_name,
+            'Specification-Vendor': mod_authors,
+            'Specification-Version': '1',
+            'Implementation-Title': project.archives_base_name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': mod_authors
+    )
+
+    from('LICENSE') {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+
+    finalizedBy 'reobfJar'
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven { url "file://${project.projectDir}/repo" }
+    }
+}

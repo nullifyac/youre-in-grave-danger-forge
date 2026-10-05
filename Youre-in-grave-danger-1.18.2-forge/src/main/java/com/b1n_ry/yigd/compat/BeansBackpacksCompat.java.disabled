@@ -1,0 +1,258 @@
+package com.b1n_ry.yigd.compat;
+
+import com.b1n_ry.yigd.components.InventoryComponent;
+import com.b1n_ry.yigd.config.CompatConfig;
+import com.b1n_ry.yigd.config.YigdConfig;
+import com.b1n_ry.yigd.data.DeathContext;
+import com.b1n_ry.yigd.data.GraveItem;
+import com.b1n_ry.yigd.events.DropRuleEvent;
+import com.b1n_ry.yigd.util.DropRule;
+import com.beansgalaxy.backpacks.platform.services.CompatHelper;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerWorld;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.UUID;
+import java.util.function.Predicate;
+
+public class BeansBackpacksCompat implements InvModCompat<BeansBackpacksCompat.BeansBackpackInv> {
+    public BeansBackpacksCompat() { }
+
+    public static void prepForTrinkets() { }
+
+    @Override
+    public String getModName() {
+        return "beansbackpacks";
+    }
+
+    @Override
+    public void clear(ServerPlayer player) {
+        CompatHelper.setBackStack(player, ItemStack.EMPTY);
+        CompatHelper.getBackpackInventory(player).clear();
+    }
+
+    @Override
+    public CompatComponent<BeansBackpackInv> load(CompoundTag nbt) {
+        ItemStack stack = ItemStack.fromNbt(nbt.getCompound("stack"));
+        DropRule rule = DropRule.valueOf(nbt.getString("dropRule"));
+        CompoundTag backpackContentsNbt = nbt.getCompound("backpackContents");
+        UUID ownerId = nbt.getUUID("ownerId");
+        float yaw = nbt.getFloat("yaw");
+        Direction direction = Direction.byId(nbt.getInt("direction"));
+
+        NonNullList<ItemStack> backpackContents = InventoryComponent.listFromNbt(backpackContentsNbt, ItemStack::fromNbt, ItemStack.EMPTY);
+
+        BeansBackpackInv inv = new BeansBackpackInv(stack, rule, backpackContents, ownerId, yaw, direction);
+        return new BeansBackpacksComponent(inv);
+    }
+
+    @Override
+    public CompatComponent<BeansBackpackInv> getNewComponent(ServerPlayer player) {
+        return new BeansBackpacksComponent(player);
+    }
+
+    public static class BeansBackpackInv {
+        private ItemStack stack;
+        private DropRule dropRule;
+        private NonNullList<ItemStack> backpackContents;
+        private final UUID ownerId;
+
+        private final float yaw;
+        private final Direction direction;
+
+        public BeansBackpackInv(ItemStack stack, DropRule dropRule, NonNullList<ItemStack> backpackContents,
+                                UUID ownerId, float yaw, Direction direction) {
+            this.stack = stack;
+            this.dropRule = dropRule;
+            this.backpackContents = backpackContents;
+            this.ownerId = ownerId;
+
+            // less important values, but they're cool I guess
+            this.yaw = yaw;
+            this.direction = direction;
+        }
+        public ItemStack getBackpack() {
+            return this.stack;
+        }
+        public DropRule getDropRule() {
+            return this.dropRule;
+        }
+        public NonNullList<ItemStack> getBackpackContents() {
+            return this.backpackContents;
+        }
+        public void setBackpack(ItemStack stack) {
+            this.stack = stack;
+        }
+        public void setDropRule(DropRule dropRule) {
+            this.dropRule = dropRule;
+        }
+        public void setBackpackContents(NonNullList<ItemStack> backpackContents) {
+            this.backpackContents = backpackContents;
+        }
+    }
+
+    private static class BeansBackpacksComponent extends CompatComponent<BeansBackpackInv> {
+
+        public BeansBackpacksComponent(ServerPlayer player) {
+            super(player);
+        }
+        public BeansBackpacksComponent(BeansBackpackInv inventory) {
+            super(inventory);
+        }
+
+        @Override
+        public BeansBackpackInv getInventory(ServerPlayer player) {
+            ItemStack stack = CompatHelper.getBackStack(player).copy();
+            NonNullList<ItemStack> backpackContents = CompatHelper.getBackpackInventory(player);
+            NonNullList<ItemStack> copied = NonNullList.of();
+            for (ItemStack i : backpackContents) {
+                copied.add(i.copy());
+            }
+
+            return new BeansBackpackInv(stack, DropRule.PUT_IN_GRAVE, copied, player.getUUID(),
+                    player.headYaw, player.getHorizontalFacing());
+        }
+
+        @Override
+        public NonNullList<ItemStack> storeToPlayer(ServerPlayer player) {
+            NonNullList<ItemStack> extraItems = NonNullList.of();
+
+            ItemStack backpack = this.inventory.getBackpack().copy();
+            NonNullList<ItemStack> backpackContents = this.inventory.getBackpackContents();
+            if (backpack.isEmpty()) {
+                for (ItemStack extra : backpackContents) {
+                    if (!extra.isEmpty())
+                        extraItems.add(extra.copy());
+                }
+                return extraItems;
+            }
+
+            CompatHelper.setBackStack(player, backpack);
+
+            NonNullList<ItemStack> backpackInventory = CompatHelper.getBackpackInventory(player);
+            backpackInventory.clear();
+            for (ItemStack stack : backpackContents) {
+                if (!stack.isEmpty()) {
+                    backpackInventory.add(stack.copy());
+                }
+            }
+
+            CompatHelper.updateBackpackInventory2C(player);
+
+            return extraItems;
+        }
+
+        @Override
+        public void handleDropRules(DeathContext context) {
+            CompatConfig compatConfig = YigdConfig.getConfig().compatConfig;
+            DropRule defaultDropRule = compatConfig.defaultBeansBackpacksDropRule;
+
+            if (this.inventory.getBackpack().isEmpty()) {
+                this.inventory.setDropRule(defaultDropRule);
+                return;
+            }
+
+            if (defaultDropRule == DropRule.PUT_IN_GRAVE)
+                this.inventory.setDropRule(DropRuleEvent.EVENT.invoker().getDropRule(this.inventory.getBackpack(), -1, context, true));
+        }
+
+        @Override
+        public NonNullList<GraveItem> getAsGraveItemList() {
+            DropRule dropRule = this.inventory.getDropRule();
+            NonNullList<GraveItem> stacks = NonNullList.of();
+
+            stacks.add(new GraveItem(this.inventory.getBackpack(), dropRule));
+            for (ItemStack stack : this.inventory.getBackpackContents()) {
+                stacks.add(new GraveItem(stack, dropRule));
+            }
+            return stacks;
+        }
+
+        @Override
+        public void clear() {
+            this.inventory.setBackpack(ItemStack.EMPTY);
+            this.inventory.getBackpackContents().clear();
+        }
+
+        @Override
+        public CompoundTag saveAdditional() {
+            CompoundTag nbt = new CompoundTag();
+            nbt.put("stack", this.inventory.stack.saveAdditional(new CompoundTag()));
+            nbt.putString("dropRule", this.inventory.dropRule.name());
+            nbt.putUUID("ownerId", this.inventory.ownerId);
+
+            nbt.putFloat("yaw", this.inventory.yaw);
+            nbt.putInt("direction", this.inventory.direction.getId());
+
+            CompoundTag backpackContentsNbt = InventoryComponent.listToNbt(this.inventory.getBackpackContents(), itemStack -> itemStack.saveAdditional(new CompoundTag()), ItemStack::isEmpty);
+            nbt.put("backpackContents", backpackContentsNbt);
+            return nbt;
+        }
+
+        @Override
+        public boolean removeItem(Predicate<ItemStack> predicate, int itemCount) {
+            for (ItemStack stack : this.inventory.getBackpackContents()) {
+                if (predicate.test(stack)) {
+                    stack.shrink(itemCount);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public void dropItems(ServerWorld world, Vec3 pos) {
+            CompatHelper.createBackpackEntity(this.inventory.getBackpack(), (int) pos.x, (int) pos.y, (int) pos.z,
+                    this.inventory.yaw, true, this.inventory.direction, world,
+                    this.inventory.ownerId, this.inventory.getBackpackContents());
+        }
+        @Override
+        public void dropGraveItems(ServerWorld world, Vec3 pos) {
+            if (this.inventory.getDropRule() == DropRule.KEEP || this.inventory.getDropRule() == DropRule.DESTROY) return;
+
+            this.inventory.setDropRule(DropRule.DROP);
+            CompatHelper.createBackpackEntity(this.inventory.getBackpack(), (int) pos.x, (int) pos.y, (int) pos.z,
+                    this.inventory.yaw, true, this.inventory.direction, world,
+                    this.inventory.ownerId, this.inventory.getBackpackContents());
+        }
+
+        @Override
+        public CompatComponent<BeansBackpackInv> filterInv(Predicate<DropRule> predicate) {
+            if (predicate.test(this.inventory.getDropRule())) {
+                return new BeansBackpacksComponent(this.inventory);
+            } else {
+                return new BeansBackpacksComponent(new BeansBackpackInv(ItemStack.EMPTY, DropRule.PUT_IN_GRAVE,
+                        NonNullList.of(), this.inventory.ownerId, this.inventory.yaw, this.inventory.direction));
+            }
+        }
+
+        @Override
+        public NonNullList<GraveItem> merge(CompatComponent<?> mergingComponent, ServerPlayer merger) {
+            NonNullList<GraveItem> extraItems = NonNullList.of();
+
+            BeansBackpackInv mergingInventory = (BeansBackpackInv) mergingComponent.inventory;
+            if (this.inventory.getBackpack().isEmpty()) {
+                for (ItemStack withoutBackpack : this.inventory.getBackpackContents()) {
+                    if (!withoutBackpack.isEmpty())
+                        extraItems.add(new GraveItem(withoutBackpack, this.inventory.getDropRule()));
+                }
+                this.inventory.setBackpack(mergingInventory.getBackpack());
+                this.inventory.setDropRule(mergingInventory.getDropRule());
+                this.inventory.setBackpackContents(mergingInventory.getBackpackContents());
+            } else {
+                extraItems.add(new GraveItem(mergingInventory.getBackpack(), mergingInventory.getDropRule()));
+                for (ItemStack stack : mergingInventory.getBackpackContents()) {
+                    if (!stack.isEmpty()) {
+                        extraItems.add(new GraveItem(stack, mergingInventory.getDropRule()));
+                    }
+                }
+            }
+
+            return extraItems;
+        }
+    }
+}
