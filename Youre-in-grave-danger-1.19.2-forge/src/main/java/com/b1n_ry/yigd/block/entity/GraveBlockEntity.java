@@ -100,16 +100,27 @@ public class GraveBlockEntity extends BlockEntity {
     }
 
     public void onBroken() {
-        if (this.level == null || this.level.isClientSide) {
+        if (this.level == null || this.level.isClientSide || this.graveId == null) {
             return;
         }
 
+        UUID removedGraveId = this.graveId;
         Yigd.END_OF_TICK.add(() -> {
-            Optional<GraveComponent> component = DeathInfoManager.INSTANCE.getGrave(this.graveId);
+            Optional<GraveComponent> component = DeathInfoManager.INSTANCE.getGrave(removedGraveId);
             component.ifPresent(grave -> {
-                if (grave.getStatus() == GraveStatus.UNCLAIMED) {
-                    grave.onDestroyed();
+                if (grave.getStatus() != GraveStatus.UNCLAIMED) {
+                    return;
                 }
+                ServerLevel graveWorld = grave.getWorld();
+                if (graveWorld == null || !graveWorld.hasChunkAt(grave.getPos())) {
+                    return;
+                }
+                // Mining may restore this grave, or another mod may have relocated it during this tick.
+                if (graveWorld.getBlockEntity(grave.getPos()) instanceof GraveBlockEntity current
+                        && removedGraveId.equals(current.getGraveId())) {
+                    return;
+                }
+                grave.onDestroyed();
             });
         });
     }

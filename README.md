@@ -13,7 +13,7 @@ Each Minecraft version is a separate Gradle project. There is no shared root bui
 | [Youre-in-grave-danger-1.19.2-forge](Youre-in-grave-danger-1.19.2-forge/) | 1.19.2 | 43.2.14 | Java 17 |
 | [Youre-in-grave-danger-1.20.1-forge](Youre-in-grave-danger-1.20.1-forge/) | 1.20.1 | 47.3.5 | Java 17 |
 
-Versions and dependency coordinates are defined in each project's `gradle.properties`. The 1.18.2, 1.19.2, and 1.20.1 builds configure a Java 17 toolchain; the 1.16.5 build sets Java 8 source and target compatibility.
+Versions and dependency coordinates are defined in each project's `gradle.properties`. Release 2.0.20 uses Minecraft-specific archive names, such as `youre-in-grave-danger-forge-1.20.1-2.0.20.jar`. The 1.18.2, 1.19.2, and 1.20.1 builds configure a Java 17 toolchain; the 1.16.5 build sets Java 8 source and target compatibility.
 
 ## Building
 
@@ -28,6 +28,10 @@ On Linux or macOS, use `./gradlew build` from the same directory. Build outputs 
 
 The builds resolve Forge, Cloth Config, and optional integration APIs from the Maven repositories declared in `build.gradle`. Local reference downloads and runtime directories are excluded from Git; the projects' `src/main/resources/` assets and Gradle wrappers are included.
 
+## Grave bug validation
+
+All four ports pass clean builds and packaged Forge initialization. The Minecraft 1.20.1 grave fixes pass 17 GameTests, 19 with Accessories beta47, and Prism death/recovery and process-restart checks. See [the validation guide](TESTING.md) for results, repeatable commands and remaining compatibility checks. Downloaded runtimes and validation output stay in ignored `.local` directories.
+
 ## Layout
 
 Each version contains:
@@ -41,4 +45,4 @@ Each version contains:
 
 ## Attribution and license metadata
 
-The version READMEs identify the upstream project as [You're in Grave Danger by B1n-ry](https://github.com/B1n-ry/Youre-in-grave-danger). Each version's `gradle.properties` declares `mod_license=MIT` and `mod_authors=b1n_ry`. The version projects currently do not contain a standalone `LICENSE` file.
+The version READMEs identify the upstream project as [You're in Grave Danger by B1n-ry](https://github.com/B1n-ry/Youre-in-grave-danger). Each version's `gradle.properties` declares `mod_license=MIT` and `mod_authors=b1n_ry`. The upstream MIT license is retained in [LICENSE](LICENSE), each version project, and the runtime and source JARs.

@@ -45,12 +45,33 @@
       "id": "#curios:ring",
       "required": false
     },
-    "#minecraft:enchantable/armor",
-    "#minecraft:enchantable/equippable",
-    "#minecraft:enchantable/weapon",
-    "#minecraft:enchantable/bow",
-    "#minecraft:enchantable/crossbow",
-    "#minecraft:enchantable/durability",
-    "#c:tools"
+    {
+      "id": "#minecraft:enchantable/armor",
+      "required": false
+    },
+    {
+      "id": "#minecraft:enchantable/equippable",
+      "required": false
+    },
+    {
+      "id": "#minecraft:enchantable/weapon",
+      "required": false
+    },
+    {
+      "id": "#minecraft:enchantable/bow",
+      "required": false
+    },
+    {
+      "id": "#minecraft:enchantable/crossbow",
+      "required": false
+    },
+    {
+      "id": "#minecraft:enchantable/durability",
+      "required": false
+    },
+    {
+      "id": "#c:tools",
+      "required": false
+    }
   ]
 }

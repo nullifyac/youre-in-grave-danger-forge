@@ -1,3 +1,17 @@
+# You're in Grave Danger 2.0.20
+
+### Fixes
+
+* Protected unclaimed graves from entity destruction.
+* Removed an incorrect Traveler's Backpack version restriction on this Minecraft version.
+* Retained grave recovery data and honored configured item/XP drops when a grave is removed, including while its owner is offline.
+* Fixed oldest-grave cleanup discarding contents before applying configured drops.
+* Corrected block and item tag paths so grave protection and inventory tags load.
+* Declared Cloth Config as a required dependency and corrected the build to use its Minecraft 1.18.2 release.
+* Made optional soulbindable tag references safe when their integration is absent.
+
+---
+
 # You're in Grave Danger 2.0.19
 
 ### Fixes

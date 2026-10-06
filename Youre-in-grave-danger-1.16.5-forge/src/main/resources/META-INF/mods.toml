@@ -27,8 +27,8 @@ ordering="NONE"
 side="BOTH"
 
 [[dependencies.${mod_id}]]
-modId="cloth_config"
-mandatory=false
+modId="cloth-config"
+mandatory=true
 versionRange="[4.0,)"
 ordering="AFTER"
 side="BOTH"
@@ -43,7 +43,7 @@ side="BOTH"
 [[dependencies.${mod_id}]]
 modId="travelersbackpack"
 mandatory=false
-versionRange="[9.0,)"
+versionRange="*"
 ordering="AFTER"
 side="BOTH"
 

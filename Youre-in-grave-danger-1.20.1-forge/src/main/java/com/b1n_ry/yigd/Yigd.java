@@ -54,9 +54,10 @@ public class Yigd {
     private static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, MOD_ID);
     private static final DeferredRegister<Enchantment> ENCHANTMENTS = DeferredRegister.create(ForgeRegistries.ENCHANTMENTS, MOD_ID);
 
-    public static final GraveBlock GRAVE_BLOCK = new GraveBlock(BlockBehaviour.Properties.of().strength(-1.0f, 3600000.0f).noOcclusion());
-    public static final RegistryObject<GraveBlock> GRAVE_BLOCK_REG = BLOCKS.register("grave", () -> GRAVE_BLOCK);
-    public static final RegistryObject<BlockItem> GRAVE_BLOCK_ITEM = ITEMS.register("grave", () -> new BlockItem(GRAVE_BLOCK, new Item.Properties()));
+    public static GraveBlock GRAVE_BLOCK;
+    public static final RegistryObject<GraveBlock> GRAVE_BLOCK_REG = BLOCKS.register("grave", () ->
+            GRAVE_BLOCK = new GraveBlock(BlockBehaviour.Properties.of().strength(-1.0f, 3600000.0f).noOcclusion()));
+    public static final RegistryObject<BlockItem> GRAVE_BLOCK_ITEM = ITEMS.register("grave", () -> new BlockItem(GRAVE_BLOCK_REG.get(), new Item.Properties()));
 
     public static DeathScrollItem DEATH_SCROLL_ITEM;
     public static final RegistryObject<DeathScrollItem> DEATH_SCROLL_ITEM_REG =
@@ -69,7 +70,7 @@ public class Yigd {
     public static BlockEntityType<GraveBlockEntity> GRAVE_BLOCK_ENTITY;
     public static final RegistryObject<BlockEntityType<GraveBlockEntity>> GRAVE_BLOCK_ENTITY_REG =
             BLOCK_ENTITY_TYPES.register("grave_block_entity", () ->
-                    GRAVE_BLOCK_ENTITY = BlockEntityType.Builder.of(GraveBlockEntity::new, GRAVE_BLOCK).build(null));
+                    GRAVE_BLOCK_ENTITY = BlockEntityType.Builder.of(GraveBlockEntity::new, GRAVE_BLOCK_REG.get()).build(null));
 
     public static SoulboundEnchantment SOULBOUND_ENCHANTMENT;
     public static DeathSightEnchantment DEATH_SIGHT_ENCHANTMENT;

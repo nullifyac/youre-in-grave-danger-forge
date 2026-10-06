@@ -724,21 +724,21 @@ public class GraveComponent {
     }
 
     public void onDestroyed() {
+        if (this.status != GraveStatus.UNCLAIMED) return;
         this.setStatus(GraveStatus.DESTROYED);
 
         if (this.world == null) return;  // Should not be the case. But this is instead of an assert that could crash the game if another mod used this method incorrectly
         PlayerList playerManager = this.world.getServer().getPlayerList();
         ServerPlayerEntity owner = playerManager.getPlayer(this.owner.getId());
-        if (owner == null) return;
 
         YigdConfig config = YigdConfig.getConfig();
 
-        Yigd.LOGGER.info("Grave belonging to {} was detected destroyed at X: {}, Y: {}, Z: {} / {}", owner.getGameProfile().getName(), this.pos.getX(), this.pos.getY(), this.pos.getZ(), this.worldResourceKey.location());
-        if (config.graveConfig.notifyOwnerIfDestroyed) {
+        Yigd.LOGGER.info("Grave belonging to {} was detected destroyed at X: {}, Y: {}, Z: {} / {}", this.owner.getName(), this.pos.getX(), this.pos.getY(), this.pos.getZ(), this.worldResourceKey.location());
+        if (owner != null && config.graveConfig.notifyOwnerIfDestroyed) {
             owner.sendMessage(new TranslationTextComponent("text.yigd.message.grave_destroyed"), Util.NIL_UUID);
         }
 
-        if (YigdConfig.getConfig().graveConfig.dropItemsIfDestroyed) {
+        if (config.graveConfig.dropItemsIfDestroyed) {
             this.dropAllGraveItems();
         }
     }

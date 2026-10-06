@@ -109,8 +109,11 @@ public class DeathInfoManager extends WorldSavedData {
 
         if (playerGraves.size() > config.graveConfig.maxBackupsPerPerson) {
             GraveComponent toBeRemoved = playerGraves.get(0);
+            // Removing the block changes UNCLAIMED to DESTROYED, so decide before deletion.
+            boolean dropContents = toBeRemoved.getStatus() == GraveStatus.UNCLAIMED
+                    && config.graveConfig.dropFromOldestWhenDeleted && toBeRemoved.getWorld() != null;
             this.delete(toBeRemoved.getGraveId());
-            if (toBeRemoved.getStatus() == GraveStatus.UNCLAIMED && config.graveConfig.dropFromOldestWhenDeleted) {
+            if (dropContents) {
                 toBeRemoved.dropAllGraveItems();
             }
         }

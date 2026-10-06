@@ -255,6 +255,30 @@ public class GraveBlock extends Block implements ITileEntityProvider, IWaterLogg
     }
 
     @Override
+    public boolean canEntityDestroy(BlockState state, IBlockReader world, BlockPos pos, Entity entity) {
+        // Entity attacks bypass mining hardness; protect graves that still contain a player's loot.
+        TileEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof GraveBlockEntity) {
+            GraveBlockEntity grave = (GraveBlockEntity) blockEntity;
+            if (grave.getGraveId() != null && grave.isUnclaimed()) {
+                return false;
+            }
+        }
+        return super.canEntityDestroy(state, world, pos, entity);
+    }
+
+    @Override
+    public void onRemove(BlockState state, World world, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!world.isClientSide && !isMoving && state.getBlock() != newState.getBlock()) {
+            TileEntity blockEntity = world.getBlockEntity(pos);
+            if (blockEntity instanceof GraveBlockEntity) {
+                ((GraveBlockEntity) blockEntity).onBroken();
+            }
+        }
+        super.onRemove(state, world, pos, newState, isMoving);
+    }
+
+    @Override
     public void playerDestroy(World world, PlayerEntity player, BlockPos pos, BlockState state, @Nullable TileEntity blockEntity, ItemStack tool) {
         YigdConfig config = YigdConfig.getConfig();
         if (!world.isClientSide && blockEntity instanceof GraveBlockEntity) {

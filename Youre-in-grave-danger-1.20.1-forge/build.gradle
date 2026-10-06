@@ -2,19 +2,27 @@ plugins {
     id 'eclipse'
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
-    id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
+    id 'org.spongepowered.mixin' version '0.7.38'
 }
 
 version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = archives_base_name
+    archivesName = "${archives_base_name}-${minecraft_version}"
 }
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(17)
     withSourcesJar()
+}
+
+// Regression tests run only in the isolated GameTest server, never in the release jar.
+sourceSets {
+    gameTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
 }
 
 minecraft {
@@ -48,6 +56,7 @@ minecraft {
 
         gameTestServer {
             workingDirectory project.file('run-gametest')
+            jvmArgs '-Xms256m', '-Xmx2G', '-XX:ActiveProcessorCount=2'
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             property 'forge.enabledGameTestNamespaces', project.mod_id
@@ -55,6 +64,7 @@ minecraft {
             mods {
                 create(project.mod_id) {
                     source sourceSets.main
+                    source sourceSets.gameTest
                 }
             }
         }
@@ -154,9 +164,21 @@ tasks.named('processResources', ProcessResources).configure {
     }
 }
 
+// MixinGradle's generated refmap is not restored with cached compiler outputs.
+// A clean release build must run the annotation processor to produce it.
+tasks.named('compileJava', JavaCompile).configure {
+    outputs.cacheIf { false }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 17
+}
+
+tasks.named('sourcesJar', Jar).configure {
+    from('LICENSE') {
+        rename { "${it}_${project.archives_base_name}" }
+    }
 }
 
 tasks.named('jar', Jar).configure {

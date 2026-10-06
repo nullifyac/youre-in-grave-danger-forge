@@ -1,3 +1,22 @@
+# You're in Grave Danger 2.0.20
+
+### Fixes
+
+* Fixed a clean Forge startup crash caused by creating the grave block before registration.
+* Fixed the Accessories version check rejecting supported beta releases.
+* Protected unclaimed graves from entity destruction.
+* Retained grave recovery data and honored configured item/XP drops when a grave is removed, including while its owner is offline.
+* Fixed oldest-grave cleanup discarding contents before applying configured drops.
+* Corrected block and item tag paths so grave protection and inventory tags load.
+* Declared Cloth Config as a required dependency.
+* Made optional soulbindable tag references safe when their integration is absent.
+
+### Notes
+
+* Accessories beta47 was verified. Beta48 has an upstream interface mixin issue on stock Forge.
+
+---
+
 # You're in Grave Danger 2.0.19
 
 ### Fixes

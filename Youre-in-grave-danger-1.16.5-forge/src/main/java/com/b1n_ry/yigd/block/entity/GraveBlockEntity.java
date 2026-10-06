@@ -102,16 +102,28 @@ public class GraveBlockEntity extends TileEntity implements ITickableTileEntity 
     }
 
     public void onBroken() {
-        if (this.level == null || this.level.isClientSide) {
+        if (this.level == null || this.level.isClientSide || this.graveId == null) {
             return;
         }
 
+        UUID removedGraveId = this.graveId;
         Yigd.END_OF_TICK.add(() -> {
-            Optional<GraveComponent> component = DeathInfoManager.INSTANCE.getGrave(this.graveId);
+            Optional<GraveComponent> component = DeathInfoManager.INSTANCE.getGrave(removedGraveId);
             component.ifPresent(grave -> {
-                if (grave.getStatus() == GraveStatus.UNCLAIMED) {
-                    grave.onDestroyed();
+                if (grave.getStatus() != GraveStatus.UNCLAIMED) {
+                    return;
                 }
+                ServerWorld graveWorld = grave.getWorld();
+                if (graveWorld == null || !graveWorld.hasChunkAt(grave.getPos())) {
+                    return;
+                }
+                // Mining may restore this grave, or another mod may have relocated it during this tick.
+                TileEntity current = graveWorld.getBlockEntity(grave.getPos());
+                if (current instanceof GraveBlockEntity
+                        && removedGraveId.equals(((GraveBlockEntity) current).getGraveId())) {
+                    return;
+                }
+                grave.onDestroyed();
             });
         });
     }
