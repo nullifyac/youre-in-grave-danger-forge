@@ -13,7 +13,7 @@ Each Minecraft version is a separate Gradle project. There is no shared root bui
 | [Youre-in-grave-danger-1.19.2-forge](Youre-in-grave-danger-1.19.2-forge/) | 1.19.2 | 43.2.14 | Java 17 |
 | [Youre-in-grave-danger-1.20.1-forge](Youre-in-grave-danger-1.20.1-forge/) | 1.20.1 | 47.3.5 | Java 17 |
 
-Versions and dependency coordinates are defined in each project's `gradle.properties`. Release 2.0.20 uses Minecraft-specific archive names, such as `youre-in-grave-danger-forge-1.20.1-2.0.20.jar`. The 1.18.2, 1.19.2, and 1.20.1 builds configure a Java 17 toolchain; the 1.16.5 build sets Java 8 source and target compatibility.
+Versions and dependency coordinates are defined in each project's `gradle.properties`. Release 2.0.21 uses Minecraft-specific archive names, such as `youre-in-grave-danger-forge-1.20.1-2.0.21.jar`. The 1.18.2, 1.19.2, and 1.20.1 builds configure a Java 17 toolchain; the 1.16.5 build sets Java 8 source and target compatibility.
 
 ## Building
 

@@ -2,6 +2,30 @@
 
 The Minecraft 1.20.1 grave fixes pass the regression suite and Prism death, recovery and process-restart checks. All four ports build successfully. Release 2.0.20 packages these fixes with Minecraft-specific filenames and the upstream MIT license. This guide records verification results and commands for repeating them.
 
+## Release 2.0.21: native placement checks
+
+All four packaged 2.0.21 JARs passed 12 native placement checks each in fresh dedicated-server worlds, followed by a world save and normal shutdown. These checks exercised the loaded block tags, actual Forge events and `GraveComponent` methods.
+
+| Minecraft | Runtime Forge | Cloth Config | Runtime Java |
+| --- | --- | --- | --- |
+| 1.16.5 | 36.2.39 | 4.17.101 | 8 |
+| 1.18.2 | 40.2.17 | 6.5.102 | 17 |
+| 1.19.2 | 43.3.0 | 8.3.134 | 17 |
+| 1.20.1 | 47.3.0 | 11.1.118 | 17 |
+
+The checks cover:
+
+- Native soft-tag membership for air, fluids and replaceable plants, with stone, bedrock, chests and existing graves excluded.
+- Support-placement events and actual cobblestone support beneath an airborne grave, while preserving existing stone and chest block entities beneath other graves.
+- Default configuration and nearby-air selection, plus native generation events that reject occupied block entities.
+- Configured graveyard selection that skips an occupied chest, ground scanning through air to a solid surface, and disabled support placement.
+
+The three older ports now define supported vanilla soft blocks explicitly. An optional `minecraft:replaceable` reference permits extensions without requiring a tag absent from those vanilla versions. Minecraft 1.20.1 retains its existing tag and placement behavior. Every production class is unchanged from 2.0.20.
+
+For a quick tag check in a disposable test world, place air or a soft plant and run `execute if block <x> <y> <z> #yigd:replace_soft_whitelist run say soft-tag-match`. Repeat with stone using `execute unless block <x> <y> <z> #yigd:replace_soft_whitelist run say solid-tag-excluded`. For placement regressions, exercise `AllowBlockUnderGraveGenerationEvent`, `GraveGenerationEvent`, `GraveComponent.tryPlaceGrave` and `findGravePos` with the conditions above, restoring configuration between cases.
+
+These native checks had no connected client and do not establish player death, item recovery, grave-history persistence across process restarts or optional-integration gameplay on the older ports. The earlier Minecraft 1.20.1 gameplay results below remain separate evidence.
+
 ## Current evidence
 
 The published Minecraft 1.20.1 YiGD 2.0.19 jar fails ordinary Forge mod initialization with `Registry is already frozen` at `Yigd.java:57`. The isolated reproduction used Java 17, Forge 47.3.5 and Cloth Config 11.1.118. Its original diagnostic target omitted sided mixins; the reusable runner uses a server target so server mixins also load.

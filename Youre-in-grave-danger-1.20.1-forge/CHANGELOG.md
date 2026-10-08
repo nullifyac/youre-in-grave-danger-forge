@@ -1,3 +1,7 @@
+## 2.0.21
+
+- Release alongside the soft-block placement fixes for older Minecraft versions; Minecraft 1.20.1 placement behavior is unchanged.
+
 # You're in Grave Danger 2.0.20
 
 ### Fixes

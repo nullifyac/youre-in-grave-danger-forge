@@ -1,3 +1,7 @@
+## 2.0.21
+
+- Fix grave support blocks and soft-block placement on Minecraft 1.16.5 by using replaceable blocks available in this version.
+
 # You're in Grave Danger 2.0.20
 
 ### Fixes
