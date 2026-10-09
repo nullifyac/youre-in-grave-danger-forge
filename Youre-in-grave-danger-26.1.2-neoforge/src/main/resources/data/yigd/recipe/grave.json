@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " # ",
+    "#B#",
+    "GGG"
+  ],
+  "key": {
+    "#": "minecraft:stone",
+    "B": "minecraft:bone",
+    "G": "minecraft:gravel"
+  },
+  "result": {
+    "id": "yigd:grave",
+    "count": 1
+  }
+}

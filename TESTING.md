@@ -2,6 +2,71 @@
 
 The Minecraft 1.20.1 grave fixes pass the regression suite and Prism death, recovery and process-restart checks. All four ports build successfully. Release 2.0.20 packages these fixes with Minecraft-specific filenames and the upstream MIT license. This guide records verification results and commands for repeating them.
 
+## Minecraft 26.1.2 NeoForge validation
+
+Release 2.0.22 uses Java 25, NeoForge 26.1.2.114, and Cloth Config 26.1.154. These are separate native runtime tests for the new target; the older Forge results below remain specific to their Minecraft versions.
+
+| Runtime profile | Required tests | Result | Evidence |
+| --- | --- | --- | --- |
+| No optional inventory mod | 41 | All passed | `.local/port-26.1.2/build-final-clean.log` |
+| Curios 15.0.0+26.1.2 | 44 | All passed | `.local/port-26.1.2/gametest-curios-final.log` |
+| Traveler's Backpack 26.1.2-11.2.8 | 43 | All passed | `.local/port-26.1.2/gametest-travelers-final.log` |
+
+Each total includes one vanilla empty test. YiGD contributes 40 base tests, three additional Curios tests, or two additional Traveler's Backpack tests. The fixtures use real Minecraft objects and native test environments, restore configuration and manager state between cases, and reject ordinary servers before installing test state. Fixtures are excluded from the runtime and sources JARs.
+
+The tested behavior includes:
+
+- Dragon and wither block-removal routines with breakable controls, loaded immunity tags, and the NeoForge entity-destruction hook for linked unclaimed graves.
+- Forced block replacement, offline owners, repeated removal, refused mining, same-UUID recreation and relocation, stale history pointing at a different grave, and single item/XP recovery without duplicate drops.
+- Enabled and disabled void generation, configured history eviction, a zero history limit, unavailable dimensions, and recovery from retained destroyed-grave backups.
+- Actual player death, respawn and recovery; 43 vanilla inventory slots, including body and saddle equipment; soulbinding and item death rules.
+- Compressed NBT save/reload and block-entity relinking; UUID identity despite profile changes; malformed-load rollback; legacy 1.20.1 and 1.21 profile, message, position and item migration.
+- Native request handling for grave previews, locking, keys and compasses, including foreign-owner permissions and recovery-compass consumption.
+- Random-spawn owner heads, successful item consumption with exact metadata, literal placeholders in inserted metadata, oversized indices, and failed spawns preserving pending loot and XP.
+- Curios normal and cosmetic items with render preferences, Traveler's Backpack data, and retention of serialized data for an unavailable integration.
+
+Packaged runtime verification on 2026-10-09 used isolated worlds and a new Prism profile with Java 25, NeoForge 26.1.2.114 and Cloth Config 26.1.154:
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Production dedicated-server startup, with YiGD and Cloth Config only | Reached `Done`, saved and stopped normally | `.local/port-26.1.2/packaged-20261009/production-server/production-startup.log` |
+| Headless persistence across two Minecraft processes | Namespaced SavedData and physical grave block entity survived | `.local/port-26.1.2/packaged-20261009/persistence/server-result-read.txt` |
+| Prism actual death and respawn | Exact named/custom-data stack of 17 diamonds captured once; respawn inventory empty | `.local/port-26.1.2/packaged-20261009/client/client-result-write.txt` |
+| Grave rendering and GUI | Front skull, inscription and outline rendered; selection and overview payloads displayed all 17 diamonds | Prism screenshots under the isolated profile |
+| Native Cloth Config screen and save | Screen opened and saved; the client priority packet reached the server | Sanitized client logs under `.local/port-26.1.2/packaged-20261009/client/` |
+| Full client/server process restart and owner recovery | Same unclaimed grave UUID persisted; exact 17-stack recovered once; grave removed; repeated click did not duplicate items | `.local/port-26.1.2/packaged-20261009/client/client-result-read.txt` |
+| Client/server write and read acknowledgements | All four result files report `PASS`; both dedicated-server processes exited 0 | `client/client-result-{write,read}.txt`, `client/server-result-{write,read}.txt`, and `client/exit-{write,read}.json` under the packaged runtime directory |
+| Release artifact inspection and reproducibility | Runtime/source JARs passed inspection and regenerated with identical SHA256 values | `.local/port-26.1.2/reproducibility-final.json` |
+
+The final Prism-tested runtime SHA256 is `e9f4b7f915d94ee7d6f4289d23d5ec5022349b486d807e6def4b95e98d7ddeb8`. The packaged release has the same hash. The final build retains the native-tested gameplay classes; later changes normalized equivalent JSON/license text and corrected the client outline texture, which the Prism run verified. Test fixtures were installed only in the isolated runtime profiles and are excluded from release artifacts.
+
+Native boss tests establish the tested vanilla routines and destruction hook; they do not establish every third-party boss's removal behavior. Optional inventory tests use real containers and attachments but do not cover their client equipment screens. The Prism run used no optional inventory integration. The test machine's unavailable sound device did not affect these gameplay and rendering checks.
+
+From the repository root, select an installed JDK 25 and run:
+
+```powershell
+$env:JAVA_HOME = 'C:\path\to\jdk-25'
+Push-Location Youre-in-grave-danger-26.1.2-neoforge
+try {
+    .\gradlew.bat '-Dorg.gradle.jvmargs=-Xmx1G -XX:ActiveProcessorCount=2' --no-daemon --max-workers=1 build compileGameTestJava
+    .\gradlew.bat '-Dorg.gradle.jvmargs=-Xmx1G -XX:ActiveProcessorCount=2' --no-daemon --max-workers=1 runGameTestServer -PcompatProfile=none
+    .\gradlew.bat '-Dorg.gradle.jvmargs=-Xmx1G -XX:ActiveProcessorCount=2' --no-daemon --max-workers=1 runGameTestServer -PcompatProfile=curios
+    .\gradlew.bat '-Dorg.gradle.jvmargs=-Xmx1G -XX:ActiveProcessorCount=2' --no-daemon --max-workers=1 runGameTestServer -PcompatProfile=travelers
+} finally {
+    Pop-Location
+}
+```
+
+Each profile has its own disposable directory under `build/gameTest/`. The Gradle profiles add the matching optional mod only to the test runtime. Confirm the server reports all required tests passed and Gradle exits successfully; the failed-spawn regression intentionally logs its rejected NBT.
+
+Inspect the packaged release with Python 3.11 or newer, from the repository root:
+
+```powershell
+py -3 tools/verify_yigd_neoforge.py Youre-in-grave-danger-26.1.2-neoforge/build/libs/youre-in-grave-danger-neoforge-2.0.22-26.1.2.jar
+```
+
+The standard-library checker validates metadata, Java 25 bytecode, JSON and resource paths, immunity tags, item definitions, the grave recipe, license inclusion, and test-fixture exclusion. It does not launch Minecraft.
+
 ## Release 2.0.21: native placement checks
 
 All four packaged 2.0.21 JARs passed 12 native placement checks each in fresh dedicated-server worlds, followed by a world save and normal shutdown. These checks exercised the loaded block tags, actual Forge events and `GraveComponent` methods.

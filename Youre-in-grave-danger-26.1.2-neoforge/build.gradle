@@ -1,0 +1,117 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = "${mod_version}-${minecraft_version}"
+group = mod_group_id
+base { archivesName = 'youre-in-grave-danger-neoforge' }
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+
+def compatProfile = providers.gradleProperty('compatProfile').getOrElse('none')
+if (!['none', 'curios', 'travelers'].contains(compatProfile)) {
+    throw new GradleException("Unknown compatibility profile '${compatProfile}'; use none, curios or travelers.")
+}
+sourceSets {
+    gameTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+configurations {
+    gameTestImplementation.extendsFrom implementation
+    gameTestCompileOnly.extendsFrom compileOnly
+    gameTestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.shedaniel.me/' }
+    maven { url = 'https://maven.theillusivec4.top/' }
+    maven {
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+}
+
+dependencies {
+    implementation "me.shedaniel.cloth:cloth-config-neoforge:${config_version}"
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
+    compileOnly 'maven.modrinth:travelersbackpack:glTGAXmg'
+    if (compatProfile == 'curios') {
+        gameTestRuntimeOnly("top.theillusivec4.curios:curios-neoforge:${curios_version}") { transitive = false }
+    }
+    if (compatProfile == 'travelers') {
+        gameTestRuntimeOnly('maven.modrinth:travelersbackpack:glTGAXmg') { transitive = false }
+    }
+}
+
+neoForge {
+    version = project.neo_version
+    addModdingDependenciesTo sourceSets.gameTest
+    runs {
+        client { client(); jvmArgument '-Xmx2G' }
+        server { server(); programArgument '--nogui'; jvmArgument '-Xmx2G' }
+        gameTestServer {
+            type = 'gameTestServer'
+            sourceSet = sourceSets.gameTest
+            gameDirectory = layout.buildDirectory.dir("gameTest/${compatProfile}").get().asFile
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'yigd_game_tests'
+            systemProperty 'yigd.test.compatProfile', compatProfile
+            jvmArgument '-Xmx2G'
+        }
+        runtimeServer {
+            server()
+            sourceSet = sourceSets.gameTest
+            gameDirectory = layout.buildDirectory.dir('runtime/server').get().asFile
+            systemProperty 'yigd.smokeServer', 'true'
+            programArgument '--nogui'
+            jvmArgument '-Xmx2G'
+        }
+        runtimeClient {
+            client()
+            sourceSet = sourceSets.gameTest
+            gameDirectory = layout.buildDirectory.dir('runtime/client').get().asFile
+            systemProperty 'yigd.smokeClient', 'true'
+            programArguments.addAll('--width', '1280', '--height', '720')
+            jvmArgument '-Xmx2G'
+        }
+    }
+    mods {
+        yigd { sourceSet sourceSets.main }
+        yigd_game_tests { sourceSet sourceSets.gameTest }
+    }
+    runs.named('client') { loadedMods = [mods.yigd] }
+    runs.named('server') { loadedMods = [mods.yigd] }
+}
+
+var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    var replacements = [minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
+        neo_version: neo_version, neo_version_range: neo_version_range, loader_version_range: loader_version_range,
+        mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+        mod_authors: mod_authors, mod_description: mod_description]
+    inputs.properties replacements
+    expand replacements
+    from 'src/main/templates'
+    into 'build/generated/sources/modMetadata'
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xmaxerrs', '1000']
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    includeEmptyDirs = false
+}
+jar { from('LICENSE') }
+tasks.named('sourcesJar', Jar) { from('LICENSE') }
+tasks.register('gameTestJar', Jar) {
+    archiveClassifier = 'test-fixture'
+    from sourceSets.gameTest.output
+}

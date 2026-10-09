@@ -1,0 +1,12 @@
+license="MIT"
+[[mods]]
+modId="yigd_game_tests"
+version="1.0.0"
+displayName="YiGD Native Runtime Regression Tests"
+description="Development-only gameplay and restart fixtures; excluded from the released mod."
+[[dependencies.yigd_game_tests]]
+modId="yigd"
+type="required"
+versionRange="[0,)"
+ordering="AFTER"
+side="BOTH"
